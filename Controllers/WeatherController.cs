@@ -65,7 +65,21 @@ namespace WeatherApi.Controllers
 					});
 			}
 
-			CurrentWeather weatherInfo = weatherInfoConverter.ConvertCurrentWeather(response);
+			CurrentWeather weatherInfo;
+
+			try
+			{
+				weatherInfo = weatherInfoConverter.ConvertCurrentWeather(response);
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(StatusCodes.Status500InternalServerError,
+					new Response
+					{
+						Status = "Internal service error",
+						ResponseMessage = "Exception message:" + ex.Message
+					});
+			}
 
 			switch (accept)
 			{
@@ -130,7 +144,7 @@ namespace WeatherApi.Controllers
 					new Response
 					{
 						Status = "Internal service error",
-						ResponseMessage = ex.Message
+						ResponseMessage = "Exception message:" + ex.Message
 					});
 			}
 
@@ -204,7 +218,7 @@ namespace WeatherApi.Controllers
 					new Response
 					{
 						Status = "Internal service error",
-						ResponseMessage = ex.Message
+						ResponseMessage = "Exception message:" + ex.Message
 					});
 			}
 
