@@ -11,7 +11,7 @@ using WeatherApi.Core;
 
 namespace WeatherApi.Controllers
 {
-	[Produces("application/json", "text/plain")]
+	[Produces("application/json")]
 	[ApiController]
 	[Route("api/[controller]")]
 	public class WeatherController : ControllerBase
@@ -34,7 +34,6 @@ namespace WeatherApi.Controllers
 		/// Get current weather in specific city
 		/// </summary>
 		/// <param name="city">Name of the city</param>
-		/// <param name="accept">Response media type</param>
 		/// <returns>Current weather information in specific city</returns>
 		/// <response code="200">Returns current weather information</response>
 		/// <response code="415">If accept contains media type that aren`t produced</response>
@@ -44,8 +43,18 @@ namespace WeatherApi.Controllers
 		[ProducesResponseType(typeof(CurrentWeather), 200)]
 		[ProducesResponseType(typeof(Response), 415)]
 		[ProducesResponseType(typeof(Response), 500)]
-		public async Task<IActionResult> GetCurrentWeather(string city, [FromHeader] string accept)
+		public async Task<IActionResult> GetCurrentWeather(string city)
 		{
+			if(city is null || city == string.Empty)
+			{
+				return StatusCode(StatusCodes.Status400BadRequest,
+					new Response
+					{
+						Status = "Bad request",
+						ResponseMessage = "Parameter 'city' is empty!"
+					});
+			}
+
 			var requestMessage = new HttpRequestMessage
 			{
 				Method = HttpMethod.Get,
@@ -81,28 +90,14 @@ namespace WeatherApi.Controllers
 					});
 			}
 
-			switch (accept)
-			{
-				case "*/*":
-				case "application/json":
-					return Ok(weatherInfo);
-				case "text/plain":
-					return Ok(weatherInfo.ToString());
-				default:
-					return StatusCode(StatusCodes.Status415UnsupportedMediaType,
-						new Response
-						{
-							Status = "Internal Service Error",
-							ResponseMessage = $"Service doesn`t produce {accept} media type."
-						});
-			}
+			return Ok(weatherInfo);
+				
 		}
 
 		/// <summary>
 		/// Get forecast for 5 days with 3-hour step in specific city
 		/// </summary>
 		/// <param name="city">Name of the city</param>
-		/// <param name="accept">Response media type</param>
 		/// <returns></returns>
 		/// <response code="200">Returns weather forecast information with 3-hour step</response>
 		/// <response code="415">If accept contains media type that aren`t produced</response>
@@ -112,8 +107,18 @@ namespace WeatherApi.Controllers
 		[ProducesResponseType(typeof(List<WeatherForecast>), 200)]
 		[ProducesResponseType(typeof(Response), 415)]
 		[ProducesResponseType(typeof(Response), 500)]
-		public async Task<IActionResult> GetForecast(string city, [FromHeader] string accept)
+		public async Task<IActionResult> GetForecast(string city)
 		{
+			if (city is null || city == string.Empty)
+			{
+				return StatusCode(StatusCodes.Status400BadRequest,
+					new Response
+					{
+						Status = "Bad request",
+						ResponseMessage = "Parameter 'city' is empty!"
+					});
+			}
+
 			var requestMessage = new HttpRequestMessage
 			{
 				Method = HttpMethod.Get,
@@ -148,36 +153,13 @@ namespace WeatherApi.Controllers
 					});
 			}
 
-			switch (accept)
-			{
-				case "*/*":
-				case "application/json":
-					return Ok(forecast);
-				case "text/plain":
-					{
-						string forecastText = "The 5 days weather forecast with 3-hour step:\n";
-						foreach(WeatherForecast wf in forecast)
-						{
-							forecastText += wf.ToString() + "\n\n";
-						}
-
-						return Ok(forecastText);
-					}
-				default:
-					return StatusCode(StatusCodes.Status415UnsupportedMediaType,
-						new Response
-						{
-							Status = "Service Error",
-							ResponseMessage = $"Service doesn`t produce {accept} media type."
-						});
-			}
+			return Ok(forecast);
 		}
 
 		/// <summary>
 		/// Get short forecast for 5 days in specific city
 		/// </summary>
 		/// <param name="city">Name of the city</param>
-		/// <param name="accept">Response media type (is taken from header)</param>
 		/// <returns></returns>
 		/// <response code="200">Returns short weather forecast information </response>
 		/// <response code="415">If accept contains media type that aren`t produced</response>
@@ -187,8 +169,18 @@ namespace WeatherApi.Controllers
 		[ProducesResponseType(typeof(List<WeatherForecast>), 200)]
 		[ProducesResponseType(typeof(Response), 415)]
 		[ProducesResponseType(typeof(Response), 500)]
-		public async Task<IActionResult> GetShortForecast(string city, [FromHeader] string accept)
+		public async Task<IActionResult> GetShortForecast(string city)
 		{
+			if (city is null || city == string.Empty)
+			{
+				return StatusCode(StatusCodes.Status400BadRequest,
+					new Response
+					{
+						Status = "Bad request",
+						ResponseMessage = "Parameter 'city' is empty!"
+					});
+			}
+
 			var requestMessage = new HttpRequestMessage
 			{
 				Method = HttpMethod.Get,
@@ -222,29 +214,7 @@ namespace WeatherApi.Controllers
 					});
 			}
 
-			switch (accept)
-			{
-				case "*/*":
-				case "application/json":
-					return Ok(forecast);
-				case "text/plain":
-					{
-						string forecastText = "The short 5 days weather forecast:\n";
-						foreach (WeatherForecast wf in forecast)
-						{
-							forecastText += wf.ToString() + "\n\n";
-						}
-
-						return Ok(forecastText);
-					}
-				default:
-					return StatusCode(StatusCodes.Status415UnsupportedMediaType,
-						new Response
-						{
-							Status = "Internal Service Error",
-							ResponseMessage = $"Service doesn`t produce {accept} media type."
-						});
-			}
+			return Ok(forecast);
 		}
 
 		private List<WeatherForecast> CalculateDailyForecast(HttpResponseMessage httpResponse)
@@ -260,7 +230,10 @@ namespace WeatherApi.Controllers
 					MinTemperature = forecastList.Min(f => f.MinTemperature),
 					MaxTemperature = forecastList.Max(f => f.MaxTemperature),
 					WindSpeed = Math.Round(forecastList.Average(f => f.WindSpeed), 2),
-					Cloudiness = Math.Round(forecastList.Average(f => f.Cloudiness), 2)
+					Cloudiness = Math.Round(forecastList.Average(f => f.Cloudiness), 2),
+					Description = forecastList.GroupBy(f => f.Description)
+											.OrderByDescending(x => x.Count())
+											.First().Key
 				});
 			}
 			weatherForecasts[0].DateOfCalculation = forecast[0].DateOfCalculation;

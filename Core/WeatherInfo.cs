@@ -18,5 +18,10 @@ namespace WeatherApi.Core
 		/// Cloudiness, %
 		/// </summary>
 		public double Cloudiness { get; set; }
+
+		/// <summary>
+		/// Weather descroption
+		/// </summary>
+		public string Description { get; set; }
 	}
 }

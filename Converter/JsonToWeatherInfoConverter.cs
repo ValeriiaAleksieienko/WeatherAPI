@@ -57,6 +57,7 @@ namespace WeatherApi.Converter
 			weatherInfo.DateOfCalculation = dateTime;
 			weatherInfo.WindSpeed = Convert.ToDouble(obj["wind"]["speed"]);
 			weatherInfo.Cloudiness = Convert.ToInt32(obj["clouds"]["all"]);
+			weatherInfo.Description = obj["weather"][0]["description"].ToString();
 
 			return weatherInfo;
 		}
