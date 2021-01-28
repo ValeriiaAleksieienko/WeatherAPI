@@ -36,12 +36,10 @@ namespace WeatherApi.Controllers
 		/// <param name="city">Name of the city</param>
 		/// <returns>Current weather information in specific city</returns>
 		/// <response code="200">Returns current weather information</response>
-		/// <response code="415">If accept contains media type that aren`t produced</response>
 		/// <response code="500">If server throw an exception or get not success status code from OpenWeatherMap</response>
 		[HttpGet]
 		[Route("GetCurrentWeather")]
 		[ProducesResponseType(typeof(CurrentWeather), 200)]
-		[ProducesResponseType(typeof(Response), 415)]
 		[ProducesResponseType(typeof(Response), 500)]
 		public async Task<IActionResult> GetCurrentWeather(string city)
 		{
@@ -100,12 +98,10 @@ namespace WeatherApi.Controllers
 		/// <param name="city">Name of the city</param>
 		/// <returns></returns>
 		/// <response code="200">Returns weather forecast information with 3-hour step</response>
-		/// <response code="415">If accept contains media type that aren`t produced</response>
 		/// <response code="500">If server throw an exception or get not success status code from OpenWeatherMap</response>
 		[HttpGet]
 		[Route("GetForecast")]
 		[ProducesResponseType(typeof(List<WeatherForecast>), 200)]
-		[ProducesResponseType(typeof(Response), 415)]
 		[ProducesResponseType(typeof(Response), 500)]
 		public async Task<IActionResult> GetForecast(string city)
 		{
@@ -162,12 +158,10 @@ namespace WeatherApi.Controllers
 		/// <param name="city">Name of the city</param>
 		/// <returns></returns>
 		/// <response code="200">Returns short weather forecast information </response>
-		/// <response code="415">If accept contains media type that aren`t produced</response>
 		/// <response code="500">If server throw an exception or get not success status code from OpenWeatherMap</response>
 		[HttpGet]
 		[Route("GetShortForecast")]
 		[ProducesResponseType(typeof(List<WeatherForecast>), 200)]
-		[ProducesResponseType(typeof(Response), 415)]
 		[ProducesResponseType(typeof(Response), 500)]
 		public async Task<IActionResult> GetShortForecast(string city)
 		{
@@ -215,6 +209,86 @@ namespace WeatherApi.Controllers
 			}
 
 			return Ok(forecast);
+		}
+
+		/// <summary>
+		/// Compare the weather in two cities
+		/// </summary>
+		/// <param name="firstCity">Name of the first city</param>
+		/// <param name="secondCity">Name of the second city</param>
+		/// <returns></returns>
+		/// <response code="200">Returns weather comparison in two cities</response>
+		/// <response code="500">If server throw an exception or get not success status code from OpenWeatherMap</response>
+		[HttpGet]
+		[Route("CompareWeather")]
+		[ProducesResponseType(typeof(WeatherComparison), 200)]
+		[ProducesResponseType(typeof(Response), 500)]
+		public async Task<IActionResult> CompareWeather(string firstCity, string secondCity)
+		{
+			if (firstCity is null || secondCity is null || firstCity == string.Empty || secondCity == string.Empty)
+			{
+				return StatusCode(StatusCodes.Status400BadRequest,
+					new Response
+					{
+						Status = "Bad request",
+						ResponseMessage = "Parameter 'firstCity' or/and 'secondCity' is empty!"
+					});
+			}
+
+			var requestMessage = new HttpRequestMessage
+			{
+				Method = HttpMethod.Get,
+				RequestUri = new Uri(httpClient.BaseAddress + $"/weather?q={firstCity}&appid={apiKey}&units=metric"),
+			};
+
+			var firstCiryResponse = await httpClient.SendAsync(requestMessage);
+			if (!firstCiryResponse.IsSuccessStatusCode)
+			{
+				return StatusCode(StatusCodes.Status500InternalServerError,
+					new Response
+					{
+						Status = "External Service Error",
+						ResponseMessage = $"Service 'api.openweathermap.org' returns " +
+						$"{(int)firstCiryResponse.StatusCode} {firstCiryResponse.ReasonPhrase}"
+					});
+			}
+
+			requestMessage = new HttpRequestMessage
+			{
+				Method = HttpMethod.Get,
+				RequestUri = new Uri(httpClient.BaseAddress + $"/weather?q={secondCity}&appid={apiKey}&units=metric"),
+			};
+
+			var secondCiryResponse = await httpClient.SendAsync(requestMessage);
+			if (!secondCiryResponse.IsSuccessStatusCode)
+			{
+				return StatusCode(StatusCodes.Status500InternalServerError,
+					new Response
+					{
+						Status = "External Service Error",
+						ResponseMessage = $"Service 'api.openweathermap.org' returns " +
+						$"{(int)secondCiryResponse.StatusCode} {secondCiryResponse.ReasonPhrase}"
+					});
+			}
+
+			WeatherComparison weatherComparison;
+			try
+			{
+				weatherComparison = new WeatherComparison(
+					weatherInfoConverter.ConvertCurrentWeather(firstCiryResponse),
+					weatherInfoConverter.ConvertCurrentWeather(secondCiryResponse));
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(StatusCodes.Status500InternalServerError,
+					new Response
+					{
+						Status = "Internal service error",
+						ResponseMessage = "Exception message:" + ex.Message
+					});
+			}
+
+			return Ok(weatherComparison);
 		}
 
 		private List<WeatherForecast> CalculateDailyForecast(HttpResponseMessage httpResponse)
